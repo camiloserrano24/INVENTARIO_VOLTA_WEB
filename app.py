@@ -76,7 +76,7 @@ def crear_producto():
                 )
                 conn.commit()
         return redirect(url_for('productos'))
-    # GET -> render form vacío
+    # GET -> form vacío
     return render_template(
         "producto_form.html",
         action='Crear',
@@ -126,18 +126,15 @@ def editar_producto(sku):
 
 @app.route('/productos/delete', methods=['POST'])
 def eliminar_productos():
-    # Recoge la lista de SKUs marcados en el form
     skus = request.form.getlist('selected_skus')
     if skus:
         placeholders = ','.join(['%s'] * len(skus))
         with get_connection() as conn:
             with conn.cursor() as cur:
-                # Primero borramos movimientos asociados
                 cur.execute(
                     f"DELETE FROM Movimientos WHERE sku IN ({placeholders});",
                     skus
                 )
-                # Luego borramos los productos
                 cur.execute(
                     f"DELETE FROM Productos WHERE sku IN ({placeholders});",
                     skus
@@ -160,25 +157,24 @@ def movimientos():
             movimientos = cur.fetchall()
     return render_template("movimientos.html", movimientos=movimientos)
 
-@app.route('/registrar_movimiento', methods=["POST"])
+@app.route('/registrar_movimiento', methods=['POST'])
 def registrar_movimiento():
     data = request.form
-    tipo = data["tipo"]
-    cantidad = int(data["cantidad"])
-    sku = data["sku"]
+    tipo = data['tipo']
+    cantidad = int(data['cantidad'])
+    sku = data['sku']
     with get_connection() as conn:
         with conn.cursor() as cur:
-            signo = 1 if tipo == "entrada" else -1
+            signo = 1 if tipo == 'entrada' else -1
             cur.execute(
                 "UPDATE Productos SET stock_actual = stock_actual + %s, fecha_actualizado=CURRENT_TIMESTAMP WHERE sku=%s;",
                 (cantidad*signo, sku)
             )
             cur.execute(
-                "INSERT INTO Movimientos (sku, cantidad, tipo_movimiento, fecha_movimiento) "
-                "VALUES (%s, %s, %s, CURRENT_TIMESTAMP);",
+                "INSERT INTO Movimientos (sku, cantidad, tipo_movimiento, fecha_movimiento) VALUES (%s, %s, %s, CURRENT_TIMESTAMP);",
                 (sku, cantidad, tipo)
             )
-    return redirect(url_for("movimientos"))
+    return redirect(url_for('movimientos'))
 
 @app.route('/eliminar_movimiento/<int:id>')
 def eliminar_movimiento(id):
@@ -191,13 +187,13 @@ def eliminar_movimiento(id):
             row = cur.fetchone()
             if row:
                 sku_db, cantidad_db, tipo_db = row
-                revert = -cantidad_db if tipo_db == "entrada" else cantidad_db
+                revert = -cantidad_db if tipo_db == 'entrada' else cantidad_db
                 cur.execute(
                     "UPDATE Productos SET stock_actual = stock_actual + %s, fecha_actualizado=CURRENT_TIMESTAMP WHERE sku=%s;",
                     (revert, sku_db)
                 )
             cur.execute("DELETE FROM Movimientos WHERE id=%s;", (id,))
-    return redirect(url_for("movimientos"))
+    return redirect(url_for('movimientos'))
 
 # ------------------------
 # PROVEEDORES
@@ -213,17 +209,17 @@ def proveedores():
             proveedores = cur.fetchall()
     return render_template("proveedores.html", proveedores=proveedores)
 
-@app.route('/crear_proveedor', methods=["POST"])
+@app.route('/crear_proveedor', methods=['POST'])
 def crear_proveedor():
     data = request.form
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 "INSERT INTO Proveedores (nombre, contacto, telefono, email) VALUES (%s, %s, %s, %s);",
-                (data["nombre"], data["contacto"], data["telefono"], data["email"])   
+                (data['nombre'], data['contacto'], data['telefono'], data['email'])
             )
             conn.commit()
-    return redirect(url_for("proveedores"))
+    return redirect(url_for('proveedores'))
 
 @app.route('/eliminar_proveedor/<int:id>')
 def eliminar_proveedor(id):
@@ -231,7 +227,7 @@ def eliminar_proveedor(id):
         with conn.cursor() as cur:
             cur.execute("DELETE FROM Proveedores WHERE id=%s;", (id,))
             conn.commit()
-    return redirect(url_for("proveedores"))
+    return redirect(url_for('proveedores'))
 
 # ------------------------
 # REPORTES
@@ -243,15 +239,13 @@ def reportes():
         df = pd.read_sql("SELECT sku, nombre, stock_actual FROM Productos", conn)
     if not df.empty:
         plt.figure(figsize=(8,4))
-        plt.bar(df["sku"], df["stock_actual"])
+        plt.bar(df['sku'], df['stock_actual'])
         plt.title("Stock actual por SKU")
         plt.xticks(rotation=45)
         plt.tight_layout()
         plt.savefig("static/reporte_stock.png")
     return render_template("reportes.html")
 
-# ------------------------
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
